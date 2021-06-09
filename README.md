@@ -1,4 +1,4 @@
-# quil-workflow
+# QuilBMS
 
 A rhythm game made in Clojure.
 BMS: https://github.com/wcko87/beatoraja-english-guide/wiki/BMS-Overview#what-is-bms
