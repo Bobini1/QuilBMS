@@ -1,8 +1,11 @@
 # QuilBMS
 
 A rhythm game made in Clojure.
+
 BMS: https://github.com/wcko87/beatoraja-english-guide/wiki/BMS-Overview#what-is-bms
+
 Format description: http://hitkey.nekokan.dyndns.info/cmds.htm
+
 Example video of a BMS game: https://www.youtube.com/watch?v=FlsS4rDMg78
 
 ## Usage
