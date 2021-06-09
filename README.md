@@ -1,14 +1,17 @@
 # quil-workflow
 
-A Clojure library designed to ... well, that part is up to you.
+A rhythm game made in Clojure.
+BMS: https://github.com/wcko87/beatoraja-english-guide/wiki/BMS-Overview#what-is-bms
+Format description: http://hitkey.nekokan.dyndns.info/cmds.htm
+Example video of a BMS game: https://www.youtube.com/watch?v=FlsS4rDMg78
 
 ## Usage
 
-FIXME
+Work in progress, not usable at this moment.
 
 ## License
 
-Copyright © 2021 FIXME
+Copyright © 2021 
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
