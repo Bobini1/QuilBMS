@@ -14,7 +14,7 @@ Work in progress, not usable at this moment.
 
 ## License
 
-Copyright © 2021 
+Copyright © 2021 Tomasz Kalisiak
 
 This program and the accompanying materials are made available under the
 terms of the Eclipse Public License 2.0 which is available at
