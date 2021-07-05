@@ -27,8 +27,8 @@
    :p2invisibles (list)
    :bgabase nil
    :bgapoor nil
-   :bgm (list)
-   :meter 1})
+   :bgms (list)
+   :meter "1"})
 
 (def bms-command-patterns
   {:player #"(?im)(?<=#PLAYER )[1-4]$"
@@ -52,15 +52,15 @@
    :p2invisibles #"(?im)(?<=#)\d{3}4[1-9]:.+$"
    :bgabase #"(?im)(?<=#)\d{3}04:.+$"
    :bgapoor #"(?im)(?<=#)\d{3}06:.+$"
-   :bgm #"(?im)(?<=#)\d{3}01:.+$"
+   :bgms #"(?im)(?<=#)\d{3}01:.+$"
    :meter #"(?im)(?<=#)\d{3}02:.+$"})
 
 (defn parse-data-line [tag line]
 
-  (cond (= tag :bgm)
-        (let [measure (Integer/parseInt (Integer. (apply str (take 3 line))))
+  (cond (= tag :bgms)
+        (let [measure (Integer/parseInt (apply str (take 3 line)))
               data (drop 6 line)]
-          [measure {:data (map #(apply (comp keyword str) %) (partition 2 data))}])
+          [measure (map #(apply (comp keyword str) %) (partition 2 data))])
 
 
         (or (= :p1visibles tag) (= :p2visibles tag) 
@@ -70,7 +70,7 @@
           [measure-column (map #(apply (comp keyword str) %) (partition 2 data))])
 
 
-        (or (= tag :wavs) (= tag :bms))
+        (or (= tag :wavs) (= tag :bmps))
         (let [identifier (apply (comp keyword str) (take 2 line))
               data (apply str (drop 3 line))]
           [identifier data])
@@ -83,6 +83,9 @@
             column (Integer/parseInt (str (nth measure-column 4)))]
         (assoc-in coll [column measure] data))) {} notes))
 
+(defn combine-bgms-lists [bgms]
+  (reduce (fn [coll [key data]] (assoc coll key (map second data))) {} bgms))
+
 (defn first-pass [bms bms-state pattern]
   (let [[tag regex] pattern]
     (cond (or (= :wavs tag) (= :bmps tag) (= :bgms tag)
@@ -91,7 +94,10 @@
           (->> (or (re-seq regex bms) (list))
                (map #(parse-data-line tag %))
                (apply concat)
-               (apply hash-map)
+               (#(if (= tag :bgms)
+                   (combine-bgms-lists
+                        (group-by first (partition 2 %)))
+                   (apply hash-map %)))
                (#(cond (or (= :p1visibles tag) (= :p2visibles tag)
                            (= :p1invisibles tag) (= :p2invisibles tag))
                        (split-to-columns %)
@@ -111,11 +117,52 @@
                    (tag bms-state))
                (assoc bms-state tag)))))
 
+
+(defn measure-timings [initial-time sounds time-per-measure]
+  (let [time-per-sound (/ time-per-measure (count sounds))
+        sounds-with-indices (filter #(not= :00 (second %)) (map #(vector %1 %2) (range) sounds))]
+    (reduce #(into %1 [(+ (* (first %2) time-per-measure) initial-time) 
+                       (second %2)]) [] sounds-with-indices)))
+
+(defn timings [measures time-per-measure]
+  (reduce #(into %1 (measure-timings (* (dec (key %2)) time-per-measure) 
+                                     (val %2) time-per-measure)) [] measures))
+
+(defn time-columns [columns time-per-measure]
+  (reduce #(assoc %1 (key %2) (->> (timings (val %2) time-per-measure)
+                                   (partition 2)
+                                   (sort-by first))) {} columns))
+
+(defn time-bgms [measures time-per-measure]
+  (sort-by first (partition 2 (mapcat #(let [initial-time (* (dec (key %1)) time-per-measure)
+                                             measure-coll (val %1)]
+                                         (mapcat (fn [meas] (measure-timings initial-time meas time-per-measure))
+                                                 measure-coll))
+                                      measures))))
+
 (defn calculate-offsets [bms-state]
-  (let [tags (list :p1visibles :p1invisibles :p2visibles :p2invisibles :bgms)
-        last-measure (apply max (concat))]
-      (reduce #() tags)))
+  (let [tags (list :p1visibles :p1invisibles :p2visibles :p2invisibles)
+        last-measure (apply max (keys (concat (get bms-state :bgms) (mapcat val (mapcat #(get bms-state %) tags)))))
+        bpm (:bpm bms-state)
+        meter (:meter bms-state)
+        time-per-measure (* (/ meter bpm) 60 1000 last-measure)]
+    (->> (->> tags
+              (reduce #(assoc %1 %2 (get bms-state %2)) {})
+              (reduce #(assoc %1 (key %2) (time-columns (val %2) time-per-measure)) {}))
+         (#(assoc %1 :bgms (time-bgms (get bms-state :bgms) time-per-measure)))
+         (reduce #(assoc %1 (key %2) (val %2)) bms-state))))
+
+
+(defn convert-to-numerical [bms-state]
+  (let [int-tags (list :playlevel :player :total)
+        double-tags (list :meter :bpm)]
+    (reduce #(update %1 %2 (fn [number] (Double/parseDouble number)))
+            (reduce #(update %1 %2 (fn [number] (Integer/parseInt number))) bms-state int-tags)
+            double-tags)))
 
 
 (defn bms-data [bms]
-  (reduce #(first-pass bms %1 %2) bms-default-state bms-command-patterns))
+  (->
+   (reduce #(first-pass bms %1 %2) bms-default-state bms-command-patterns)
+   convert-to-numerical
+   calculate-offsets))
