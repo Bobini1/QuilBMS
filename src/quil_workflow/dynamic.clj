@@ -1,28 +1,34 @@
 (ns quil-workflow.dynamic
   (:require [quil.core :as q]
-            [quil.middleware :as m])) 
+            [quil.middleware :as m]
+            [quil-workflow.sound-manager :as sound]
+            [quil-workflow.parsing :as parsing])) 
 
-(def min-r 10)
 
 (defn setup []
   ; initial state
-  {:x 0 :y 0 :r min-r})
+  {:current-bms (parsing/bms-data parsing/bms)
+   :gameplay-state {:note-positions (list (list 100 100))}
+   :gameplay-configs {:note-h 5
+                      :note-w 10
+                      :note-color [10 0 90]
+                      :column-mapping {1 1, 2 2, 3 3, 4 4, 5 5, 6 8, 7 9, 8 6}
+                      :bg-color [47 79 79]}
+   :current-state :gameplay})
 
 (defn draw [state]
-  (q/background 255)
-  (q/ellipse (:x state) (:y state) (/ (:r state) 2) (:r state)))
+  (cond (= (:current-state state) :gameplay)
+        (let [bg-color (get-in state [:gameplay-configs :bg-color])
+              notes (get-in state [:gameplay-state :note-positions] (list))
+              note-w (get-in state [:gameplay-configs :note-w])
+              note-h (get-in state [:gameplay-configs :note-h])]
+          (do (apply q/background bg-color)
+              (run! (fn [[x y]] (q/rect x y note-w note-h)) notes)))
+        :else nil))
 
-(defn update [state]
-  ; increase radius of the circle by 1 on each frame
-  (update-in state [:r] inc))
-
-(defn shrink [r]
-  (max min-r (dec r)))
+(defn update-state [state]
+  state)
 
 (defn mouse-moved [state event]
-  (-> state
-      ; set circle position to mouse position
-      (assoc :x (:x event) :y (:y event))
-      ; decrease radius
-      (update-in [:r] shrink)))
+  nil)
 
